@@ -1,16 +1,13 @@
-"""
-Main entry point for Port Scanner Module
-Handles CLI arguments, logging, and file saving
-Module itself remains silent and reusable
-"""
-
 import sys
 import os
 import logging
 import argparse
 import json
 from datetime import datetime
-from modules import portscan_module
+from modules import portscan
+from modules import subdomains
+from modules.dns import DNSModule
+from modules import whois
 
 
 def setup_logging(verbose: bool = False):
@@ -42,7 +39,7 @@ def ensure_results_directory():
     return results_dir
 
 
-def generate_filename(prefix: str = "portscan", extension: str = "json"):
+def generate_filename(prefix: str = "scan", extension: str = "json"):
     """
     Generate timestamped filename
     
@@ -99,7 +96,19 @@ def print_results(results: dict, output_format: str = "text"):
         print(json.dumps(results, indent=2))
         return
     
-    # Text format - clean and simple
+    # Text format - handle different result types
+    if "port_scan" in results:
+        print_portscan_results(results)
+    elif "subdomain_enum" in results:
+        print_subdomain_results(results)
+    elif "dns_enum" in results:
+        print_dns_results(results)
+    elif "whois_lookup" in results:
+        print_whois_results(results)
+
+
+def print_portscan_results(results: dict):
+    """Print port scan results in text format"""
     scan_data = results.get("port_scan", {})
     
     print("\n[+] Port Scan Results\n")
@@ -128,6 +137,77 @@ def print_results(results: dict, output_format: str = "text"):
         print()
 
 
+def print_subdomain_results(results: dict):
+    """Print subdomain enumeration results in text format"""
+    subdomain_data = results.get("subdomain_enum", {})
+    
+    print("\n[+] Subdomain Enumeration Results\n")
+    print(f"Target Domain : {subdomain_data.get('target', 'N/A')}")
+    print(f"Scan Time     : {subdomain_data.get('scan_time', 'N/A')}")
+    
+    if "error" in subdomain_data:
+        print(f"\n[-] ERROR: {subdomain_data['error']}\n")
+        return
+    
+    subdomains_list = subdomain_data.get("subdomains", [])
+    
+    if not subdomains_list:
+        print(f"\n[-] No subdomains found\n")
+    else:
+        print(f"\nFound {len(subdomains_list)} unique subdomains:")
+        print("-" * 50)
+        for subdomain in subdomains_list:
+            print(f"  {subdomain}")
+        print()
+
+
+def print_dns_results(results: dict):
+    """Print DNS enumeration results in text format"""
+    dns_data = results.get("dns_enum", {})
+    
+    print("\n[+] DNS Enumeration Results\n")
+    print(f"Target Domain : {dns_data.get('target', 'N/A')}")
+    print(f"Scan Time     : {dns_data.get('scan_time', 'N/A')}")
+    
+    if "error" in dns_data:
+        print(f"\n[-] ERROR: {dns_data['error']}\n")
+        return
+    
+    records = dns_data.get("records", {})
+    
+    if not records:
+        print(f"\n[-] No DNS records found\n")
+    else:
+        print(f"\nDNS Records:")
+        print("-" * 50)
+        for record_type, values in records.items():
+            print(f"\n{record_type}:")
+            for value in values:
+                print(f"  {value}")
+        print()
+
+
+def print_whois_results(results: dict):
+    """Print WHOIS lookup results in text format"""
+    whois_data = results.get("whois_lookup", {})
+    
+    print("\n[+] WHOIS Lookup Results\n")
+    print(f"Target Domain : {whois_data.get('target', 'N/A')}")
+    print(f"Scan Time     : {whois_data.get('scan_time', 'N/A')}")
+    
+    if "error" in whois_data:
+        print(f"\n[-] ERROR: {whois_data['error']}\n")
+        return
+    
+    whois_info = whois_data.get("whois_data", "")
+    if whois_info:
+        print("\nWHOIS Information:")
+        print("-" * 50)
+        print(whois_info)
+    else:
+        print("\n[-] No WHOIS data available\n")
+
+
 def parse_arguments():
     """
     Parse command line arguments
@@ -136,16 +216,27 @@ def parse_arguments():
         Parsed arguments
     """
     parser = argparse.ArgumentParser(
-        description="Port Scanner Module - Silent worker for reconnaissance framework",
+        description="Offensive Recon Tool - Comprehensive reconnaissance framework",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py example.com
-  python main.py 192.168.1.1 -p 1-1000
-  python main.py example.com -p 80,443,8080
-  python main.py example.com -t 2 -w 100
-  python main.py example.com -f json -o custom_name
-  python main.py example.com -v
+  Port Scanning:
+    python main.py example.com --portscan
+    python main.py 192.168.1.1 --portscan -p 1-1000
+    python main.py example.com --portscan -p 80,443,8080
+  
+  Subdomain Enumeration:
+    python main.py example.com --subdomains
+  
+  DNS Enumeration:
+    python main.py example.com --dns
+    python main.py example.com --dns --dns-types A,MX,NS
+  
+  WHOIS Lookup:
+    python main.py example.com --whois
+  
+  Multiple Modules:
+    python main.py example.com --subdomains --dns --portscan
         """
     )
     
@@ -154,6 +245,38 @@ Examples:
         help="Target domain name or IP address"
     )
     
+    # Module selection
+    parser.add_argument(
+        "--portscan",
+        action="store_true",
+        help="Run port scan module"
+    )
+    
+    parser.add_argument(
+        "--subdomains",
+        action="store_true",
+        help="Run subdomain enumeration module"
+    )
+    
+    parser.add_argument(
+        "--dns",
+        action="store_true",
+        help="Run DNS enumeration module"
+    )
+    
+    parser.add_argument(
+        "--whois",
+        action="store_true",
+        help="Run WHOIS lookup module"
+    )
+    
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Run all available modules"
+    )
+    
+    # Port scan specific options
     parser.add_argument(
         "-p", "--ports",
         help="Ports to scan: '80,443,8080' or '1-1000' (default: common ports)",
@@ -163,17 +286,31 @@ Examples:
     parser.add_argument(
         "-t", "--timeout",
         type=float,
-        help="Connection timeout in seconds (default: 1.5)",
+        help="Connection timeout in seconds for port scan (default: 1.5)",
         default=1.5
     )
     
     parser.add_argument(
         "-w", "--workers",
         type=int,
-        help="Maximum concurrent threads (default: 50)",
+        help="Maximum concurrent threads for port scan (default: 50)",
         default=50
     )
     
+    # DNS specific options
+    parser.add_argument(
+        "--dns-types",
+        help="DNS record types to query (comma-separated, default: A,AAAA,MX,NS,TXT,SOA,CNAME)",
+        default=None
+    )
+    
+    parser.add_argument(
+        "--nameserver",
+        help="Custom nameserver for DNS queries",
+        default=None
+    )
+    
+    # General options
     parser.add_argument(
         "-f", "--format",
         choices=["text", "json"],
@@ -227,46 +364,262 @@ def parse_ports(port_string: str):
         sys.exit(1)
 
 
+def run_portscan(target: str, args) -> dict:
+    """
+    Run port scan module
+    
+    Args:
+        target: Target domain or IP
+        args: Parsed command line arguments
+        
+    Returns:
+        Port scan results dictionary
+    """
+    logging.info(f"Starting port scan: {target}")
+    
+    config = {
+        "timeout": args.timeout,
+        "max_workers": args.workers
+    }
+    
+    if args.ports:
+        config["ports"] = parse_ports(args.ports)
+    
+    results = portscan.run(target, config)
+    results["port_scan"]["target"] = target
+    
+    return results
+
+
+def run_subdomain_enum(target: str) -> dict:
+    """
+    Run subdomain enumeration module
+    
+    Args:
+        target: Target domain
+        
+    Returns:
+        Subdomain enumeration results dictionary
+    """
+    logging.info(f"Starting subdomain enumeration: {target}")
+    
+    try:
+        subdomains_list = subdomains.get_subdomains(target)
+        
+        return {
+            "subdomain_enum": {
+                "target": target,
+                "subdomains": subdomains_list,
+                "count": len(subdomains_list),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except Exception as e:
+        logging.error(f"Subdomain enumeration failed: {e}")
+        return {
+            "subdomain_enum": {
+                "target": target,
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
+def run_dns_enum(target: str, args) -> dict:
+    """
+    Run DNS enumeration module
+    
+    Args:
+        target: Target domain
+        args: Parsed command line arguments
+        
+    Returns:
+        DNS enumeration results dictionary
+    """
+    logging.info(f"Starting DNS enumeration: {target}")
+    
+    try:
+        dns_module = DNSModule(nameserver=args.nameserver)
+        
+        dns_types = None
+        if args.dns_types:
+            dns_types = [t.strip().upper() for t in args.dns_types.split(",")]
+        
+        records = dns_module.run(target, types=dns_types)
+        
+        return {
+            "dns_enum": {
+                "target": target,
+                "records": records,
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except Exception as e:
+        logging.error(f"DNS enumeration failed: {e}")
+        return {
+            "dns_enum": {
+                "target": target,
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
+def run_whois_lookup(target: str) -> dict:
+    """
+    Run WHOIS lookup module
+    
+    Args:
+        target: Target domain
+        
+    Returns:
+        WHOIS lookup results dictionary
+    """
+    logging.info(f"Starting WHOIS lookup: {target}")
+    
+    try:
+        import subprocess
+        
+        # Run whois command
+        result = subprocess.run(
+            ["whois", target],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {
+                "whois_lookup": {
+                    "target": target,
+                    "whois_data": result.stdout,
+                    "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            }
+        else:
+            return {
+                "whois_lookup": {
+                    "target": target,
+                    "error": f"WHOIS command failed: {result.stderr}",
+                    "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            }
+    except FileNotFoundError:
+        logging.error("WHOIS command not found. Please install whois utility.")
+        return {
+            "whois_lookup": {
+                "target": target,
+                "error": "WHOIS command not found on system",
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except Exception as e:
+        logging.error(f"WHOIS lookup failed: {e}")
+        return {
+            "whois_lookup": {
+                "target": target,
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
 def main():
     """
     Main execution function
-    Simple wrapper around the silent module
+    Orchestrates multiple reconnaissance modules
     """
     args = parse_arguments()
     
     # Setup logging
     setup_logging(args.verbose)
     
-    # Build configuration
-    config = {
-        "timeout": args.timeout,
-        "max_workers": args.workers
-    }
+    # Determine which modules to run
+    run_all = args.all
+    modules_to_run = []
     
-    # Parse ports if provided
-    if args.ports:
-        config["ports"] = parse_ports(args.ports)
+    if run_all or args.portscan:
+        modules_to_run.append("portscan")
+    if run_all or args.subdomains:
+        modules_to_run.append("subdomains")
+    if run_all or args.dns:
+        modules_to_run.append("dns")
+    if run_all or args.whois:
+        modules_to_run.append("whois")
     
-    # Run port scan (module is silent)
+    # If no modules specified, default to port scan (backward compatibility)
+    if not modules_to_run:
+        modules_to_run.append("portscan")
+    
+    logging.info(f"Target: {args.target}")
+    logging.info(f"Modules to run: {', '.join(modules_to_run)}")
+    
+    # Run modules and collect results
+    all_results = {}
+    has_error = False
+    
     try:
-        logging.info(f"Starting port scan: {args.target}")
-        results = portscan_module.run(args.target, config)
+        for module_name in modules_to_run:
+            try:
+                if module_name == "portscan":
+                    results = run_portscan(args.target, args)
+                    all_results.update(results)
+                    
+                elif module_name == "subdomains":
+                    results = run_subdomain_enum(args.target)
+                    all_results.update(results)
+                    
+                elif module_name == "dns":
+                    results = run_dns_enum(args.target, args)
+                    all_results.update(results)
+                    
+                elif module_name == "whois":
+                    results = run_whois_lookup(args.target)
+                    all_results.update(results)
+                
+                # Check for errors in this module
+                for key in results:
+                    if "error" in results[key]:
+                        has_error = True
+                        
+            except KeyboardInterrupt:
+                raise
+            except Exception as e:
+                logging.error(f"Error running {module_name}: {e}")
+                has_error = True
         
-        # Add target to results for display
-        results["port_scan"]["target"] = args.target
-        
-        # Save results automatically
-        saved_path = save_results(results, args.output)
-        
-        # Print results
-        print_results(results, args.format)
-        
-        if saved_path and args.format == "text":
-            print(f"[+] Results saved to: {saved_path}\n")
+        # Save all results to file
+        if all_results:
+            # Generate appropriate prefix for filename
+            prefix = "recon"
+            if len(modules_to_run) == 1:
+                prefix = modules_to_run[0]
+            
+            if args.output:
+                saved_path = save_results(all_results, args.output)
+            else:
+                custom_name = generate_filename(prefix=prefix)
+                saved_path = save_results(all_results, custom_name)
+            
+            # Print results for each module
+            for module_name in modules_to_run:
+                module_key_map = {
+                    "portscan": "port_scan",
+                    "subdomains": "subdomain_enum",
+                    "dns": "dns_enum",
+                    "whois": "whois_lookup"
+                }
+                
+                module_key = module_key_map.get(module_name)
+                if module_key and module_key in all_results:
+                    module_results = {module_key: all_results[module_key]}
+                    print_results(module_results, args.format)
+            
+            if saved_path and args.format == "text":
+                print(f"[+] All results saved to: {saved_path}\n")
         
         # Exit with appropriate code
-        scan_data = results.get("port_scan", {})
-        if "error" in scan_data:
+        if has_error:
             sys.exit(1)
         
     except KeyboardInterrupt:
@@ -274,6 +627,9 @@ def main():
         sys.exit(130)
     except Exception as e:
         logging.error(f"Unexpected error: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
 
