@@ -30,6 +30,7 @@ python main.py <target> [module flags] [options]
 | Subdomain Enum | `--subdomains` | Find subdomains |
 | DNS Lookup | `--dns` | Query DNS records |
 | WHOIS Lookup | `--whois` | Get domain registration info |
+| Banner Grabbing | `--banner` | Grab service banners |
 | All Modules | `--all` | Run everything |
 
 ## Quick Examples
@@ -69,11 +70,27 @@ python main.py example.com --dns --dns-types A,MX,NS
 python main.py example.com --whois
 ```
 
+### Banner Grabbing
+
+```bash
+# Grab banners from default ports
+python main.py example.com --banner
+
+# Grab banners from specific ports
+python main.py example.com --banner -p 80,443,8080
+
+# Combine with port scan
+python main.py example.com --portscan --banner -p 1-1000
+```
+
 ### Run Multiple Modules
 
 ```bash
 # DNS + Port Scan
 python main.py example.com --dns --portscan -p 80,443
+
+# Port Scan + Banner Grabbing
+python main.py example.com --portscan --banner -p 80,443,8080
 
 # Everything
 python main.py example.com --all
@@ -106,6 +123,9 @@ Results/
 ```bash
 # Quick web server check
 python main.py target.com --portscan -p 80,443,8080,8443
+
+# Web server fingerprinting
+python main.py target.com --portscan --banner -p 80,443,8080
 
 # Full reconnaissance
 python main.py target.com --all -o full_scan

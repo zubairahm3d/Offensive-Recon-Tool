@@ -8,6 +8,7 @@ from modules import portscan
 from modules import subdomains
 from modules.dns import DNSModule
 from modules import whois
+from modules import banner
 
 
 def setup_logging(verbose: bool = False):
@@ -105,6 +106,8 @@ def print_results(results: dict, output_format: str = "text"):
         print_dns_results(results)
     elif "whois_lookup" in results:
         print_whois_results(results)
+    elif "banner_grab" in results:
+        print_banner_results(results)
 
 
 def print_portscan_results(results: dict):
@@ -208,6 +211,41 @@ def print_whois_results(results: dict):
         print("\n[-] No WHOIS data available\n")
 
 
+def print_banner_results(results: dict):
+    """Print banner grabbing results in text format"""
+    banner_data = results.get("banner_grab", {})
+    
+    print("\n[+] Banner Grabbing Results\n")
+    print(f"Target        : {banner_data.get('target', 'N/A')}")
+    print(f"Resolved IP   : {banner_data.get('resolved_ip', 'N/A')}")
+    print(f"Scan Time     : {banner_data.get('scan_time', 'N/A')}")
+    
+    if "error" in banner_data:
+        print(f"\n[-] ERROR: {banner_data['error']}\n")
+        return
+    
+    banners_list = banner_data.get("banners", [])
+    
+    if not banners_list:
+        print(f"\n[-] No banners grabbed\n")
+    else:
+        print(f"\nBanners Grabbed ({len(banners_list)}):")
+        print("-" * 80)
+        for banner_info in banners_list:
+            port = banner_info.get("port")
+            service = banner_info.get("service", "Unknown")
+            banner_text = banner_info.get("banner", "")
+            
+            print(f"\nPort {port} - {service}")
+            print("-" * 80)
+            # Limit banner display to first 200 chars for readability
+            if len(banner_text) > 200:
+                print(f"{banner_text[:200]}...")
+            else:
+                print(banner_text)
+        print()
+
+
 def parse_arguments():
     """
     Parse command line arguments
@@ -234,6 +272,10 @@ Examples:
   
   WHOIS Lookup:
     python main.py example.com --whois
+  
+  Banner Grabbing:
+    python main.py example.com --banner
+    python main.py example.com --banner --portscan
   
   Multiple Modules:
     python main.py example.com --subdomains --dns --portscan
@@ -268,6 +310,12 @@ Examples:
         "--whois",
         action="store_true",
         help="Run WHOIS lookup module"
+    )
+    
+    parser.add_argument(
+        "--banner",
+        action="store_true",
+        help="Run banner grabbing module"
     )
     
     parser.add_argument(
@@ -524,6 +572,47 @@ def run_whois_lookup(target: str) -> dict:
         }
 
 
+def run_banner_grab(target: str, args) -> dict:
+    """
+    Run banner grabbing module
+    
+    Args:
+        target: Target domain or IP
+        args: Parsed command line arguments
+        
+    Returns:
+        Banner grabbing results dictionary
+    """
+    logging.info(f"Starting banner grabbing: {target}")
+    
+    try:
+        # Use ports from port scan if available, otherwise use default banner ports
+        ports = None
+        if args.ports:
+            ports = parse_ports(args.ports)
+            if isinstance(ports, tuple):
+                # Convert range to list
+                ports = list(range(ports[0], ports[1] + 1))
+        
+        results = banner.run(
+            target,
+            ports=ports,
+            timeout=args.timeout,
+            max_workers=min(args.workers, 20)  # Limit workers for banner grabbing
+        )
+        
+        return results
+    except Exception as e:
+        logging.error(f"Banner grabbing failed: {e}")
+        return {
+            "banner_grab": {
+                "target": target,
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
 def main():
     """
     Main execution function
@@ -546,6 +635,8 @@ def main():
         modules_to_run.append("dns")
     if run_all or args.whois:
         modules_to_run.append("whois")
+    if run_all or args.banner:
+        modules_to_run.append("banner")
     
     # If no modules specified, default to port scan (backward compatibility)
     if not modules_to_run:
@@ -575,6 +666,10 @@ def main():
                     
                 elif module_name == "whois":
                     results = run_whois_lookup(args.target)
+                    all_results.update(results)
+                    
+                elif module_name == "banner":
+                    results = run_banner_grab(args.target, args)
                     all_results.update(results)
                 
                 # Check for errors in this module
@@ -607,7 +702,8 @@ def main():
                     "portscan": "port_scan",
                     "subdomains": "subdomain_enum",
                     "dns": "dns_enum",
-                    "whois": "whois_lookup"
+                    "whois": "whois_lookup",
+                    "banner": "banner_grab"
                 }
                 
                 module_key = module_key_map.get(module_name)
