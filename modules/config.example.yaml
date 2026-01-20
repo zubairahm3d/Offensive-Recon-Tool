@@ -1,0 +1,52 @@
+# Offensive Recon Tool
+# Configuration Reference File
+# NOTE: This file is NOT auto-loaded by the tool.
+# It documents default behaviors of existing modules.
+
+general:
+  platform: "kali-linux"
+  python_version: ">=3.7"
+  output_directory: "Results"
+  report_directory: "reports"
+
+portscan:
+  module: modules/portscan.py
+  default_timeout: 1.5
+  default_workers: 50
+  ports: "common_ports_or_user_defined"
+
+subdomains:
+  module: modules/subdomains.py
+  passive_only: true
+  sources:
+    - hackertarget
+    - crtsh
+
+dns:
+  module: modules/dns.py
+  library: dnspython
+  default_record_types:
+    - A
+    - AAAA
+    - MX
+    - NS
+    - TXT
+    - SOA
+    - CNAME
+
+whois:
+  module: modules/whois.py
+  dependency: system_whois_command
+  timeout: 30
+
+banner:
+  module: modules/banner.py
+  timeout: 3
+  worker_limit: 20
+
+requirements:
+  python_packages:
+    - dnspython
+    - requests
+  system_tools:
+    - whois
