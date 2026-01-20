@@ -195,7 +195,7 @@ def validate_report_format(fmt: str) -> Dict:
 # Master Validator (Main.py)
 # =========================
 
-def validate_main_inputs(args) -> Dict:
+def run(args) -> Dict:
     """
     Validate all inputs coming from main.py before execution
     """
@@ -237,3 +237,4 @@ def validate_main_inputs(args) -> Dict:
         args.output = sanitize_filename(args.output)
 
     return {"valid": True}
+
