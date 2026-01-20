@@ -103,7 +103,7 @@ python main.py example.com --all
 | `-p, --ports` | Ports to scan (e.g., `80,443` or `1-1000`) |
 | `-t, --timeout` | Connection timeout in seconds (default: 1.5) |
 | `-w, --workers` | Max threads for port scan (default: 50) |
-| `-f, --format` | Output format: `text` , `json` or 'html' (default: text) |
+| `-f, --format` | Output format: `text` , `json` or `html` (default: text) |
 | `-o, --output` | Custom filename for results |
 | `-v, --verbose` | Enable verbose logging |
 
