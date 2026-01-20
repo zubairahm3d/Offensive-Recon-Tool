@@ -672,8 +672,12 @@ def main():
 
     if not validation_result.get("valid", False):
         logging.error("Target validation failed. Exiting.")
-        print_results(validation_result, args.format)
-        sys.exit(1)
+
+        print("\n[+] TARGET VALIDATION")
+        print(f"Valid Target : {validation_result.get('valid')}")
+        print(f"Error        : {validation_result.get('error')}")
+
+sys.exit(1)
 
     has_error = False
     
@@ -760,5 +764,6 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
