@@ -385,13 +385,13 @@ Examples:
     
     return parser.parse_args()
 
-def run_validation(target: str) -> dict:
+def run_validation(args) -> dict:
     """
     Run target validation (domain/IP checks)
     """
     try:
         from modules import validator
-        return validator.run(target)
+        return validator.run(args)
     except Exception as e:
         return {
             "validation": {
@@ -667,14 +667,14 @@ def main():
     
     # Run modules and collect results
     all_results = {}
-    validation_result = run_validation(args.target)
-    all_results.update(validation_result)
+    validation_result = run_validation(args)
+    all_results["validation"] = validation_result
 
-    if not validation_result.get("validation", {}).get("is_valid", False):
+    if not validation_result.get("valid", False):
         logging.error("Target validation failed. Exiting.")
         print_results(validation_result, args.format)
         sys.exit(1)
-        
+
     has_error = False
     
     try:
@@ -760,4 +760,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
