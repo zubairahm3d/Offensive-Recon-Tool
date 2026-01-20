@@ -108,12 +108,7 @@ def print_results(results: dict, output_format: str = "text"):
         print_whois_results(results)
     elif "banner_grab" in results:
         print_banner_results(results)
-    elif "validation" in results:
-        validation = results["validation"]
-        print("\n[+] TARGET VALIDATION\n")
-        print(f"Valid Target : {validation.get('is_valid')}")
-        if "error" in validation:
-            print(f"Error        : {validation.get('error')}")
+
 
 def print_portscan_results(results: dict):
     """Print port scan results in text format"""
@@ -385,21 +380,6 @@ Examples:
     
     return parser.parse_args()
 
-def run_validation(args) -> dict:
-    """
-    Run target validation (domain/IP checks)
-    """
-    try:
-        from modules import validator
-        return validator.run(args)
-    except Exception as e:
-        return {
-            "validation": {
-                "is_valid": False,
-                "error": str(e),
-                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-        }
 
 def parse_ports(port_string: str):
     """
@@ -667,18 +647,6 @@ def main():
     
     # Run modules and collect results
     all_results = {}
-    validation_result = run_validation(args)
-    all_results["validation"] = validation_result
-
-    if not validation_result.get("valid", False):
-        logging.error("Target validation failed. Exiting.")
-
-        print("\n[+] TARGET VALIDATION")
-        print(f"Valid Target : {validation_result.get('valid')}")
-        print(f"Error        : {validation_result.get('error')}")
-
-sys.exit(1)
-
     has_error = False
     
     try:
@@ -770,9 +738,4 @@ sys.exit(1)
 
 
 if __name__ == "__main__":
-
     main()
-
-
-
-
