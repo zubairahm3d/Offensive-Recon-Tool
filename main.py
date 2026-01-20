@@ -366,7 +366,7 @@ Examples:
     # General options
     parser.add_argument(
         "-f", "--format",
-        choices=["text", "json"],
+        choices=["text", "json", "html"],
         help="Output format (default: text)",
         default="text"
     )
@@ -745,7 +745,15 @@ sys.exit(1)
             
             if saved_path and args.format == "text":
                 print(f"[+] All results saved to: {saved_path}\n")
-        
+            if args.format == "html":
+                    try:
+                        from modules import reports
+                        report_file = reports.create_report(all_results, args.target, "html")
+                        print(f"[+] HTML report generated: {report_file}")
+                    except ImportError as e:
+                        print(f"[!] Could not import report module: {e}")
+                    except Exception as e:
+                        print(f"[!] Error generating HTML report: {e}")
         # Exit with appropriate code
         if has_error:
             sys.exit(1)
@@ -764,6 +772,7 @@ sys.exit(1)
 if __name__ == "__main__":
 
     main()
+
 
 
 
