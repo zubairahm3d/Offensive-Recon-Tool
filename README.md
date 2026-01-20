@@ -103,19 +103,21 @@ python main.py example.com --all
 | `-p, --ports` | Ports to scan (e.g., `80,443` or `1-1000`) |
 | `-t, --timeout` | Connection timeout in seconds (default: 1.5) |
 | `-w, --workers` | Max threads for port scan (default: 50) |
-| `-f, --format` | Output format: `text` or `json` (default: text) |
+| `-f, --format` | Output format: `text` , `json` or 'html' (default: text) |
 | `-o, --output` | Custom filename for results |
 | `-v, --verbose` | Enable verbose logging |
 
 ## Output
 
-Results are automatically saved to the `Results/` directory with timestamps.
+Results are automatically saved to the `Results/` directory with timestamps and if save in html it will also be saved in 'reports'/ directory.
 
 ```bash
 Results/
 ├── portscan_2026-01-19_13-24-28.json
 ├── dns_2026-01-19_13-25-20.json
 └── recon_2026-01-19_13-24-50.json
+reports/
+└── google.com_2026_10_20_13_45.html
 ```
 
 ## Examples
