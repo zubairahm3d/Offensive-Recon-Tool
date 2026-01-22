@@ -31,6 +31,8 @@ python main.py <target> [module flags] [options]
 | DNS Lookup | `--dns` | Query DNS records |
 | WHOIS Lookup | `--whois` | Get domain registration info |
 | Banner Grabbing | `--banner` | Grab service banners |
+| Web Crawler | `--crawler` | Crawl for internal URLs (Uses Katana by default) |
+| Data Extractor | `--extractor` | Extract JS/Params (requires crawler) |
 | All Modules | `--all` | Run everything |
 
 ## Quick Examples
@@ -81,6 +83,21 @@ python main.py example.com --banner -p 80,443,8080
 
 # Combine with port scan
 python main.py example.com --portscan --banner -p 1-1000
+```
+
+```
+
+### Web Crawler & Extractor
+
+```bash
+# Crawl using Katana (Default, headless support)
+python main.py example.com --crawler
+
+# Crawl using built-in Python requests (Fallback)
+python main.py example.com --crawler --python-crawler
+
+# Crawl and Extract Data (JS files, parameters)
+python main.py example.com --crawler --extractor
 ```
 
 ### Run Multiple Modules

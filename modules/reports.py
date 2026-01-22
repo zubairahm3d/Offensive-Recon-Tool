@@ -169,7 +169,40 @@ body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }}
                 html += '</div>'
             else:
                 html += '<p>No technologies detected</p>'
-        
+
+        elif module_name == "crawler":
+            urls = module_data.get("urls", [])
+            html += f'<div class="card"><h3>CRAWLER RESULTS ({len(urls)})</h3>'
+            if urls:
+                html += '<div style="max-height: 300px; overflow-y: auto;"><ul>'
+                for url in urls:
+                    html += f'<li><a href="{url}" target="_blank">{url}</a></li>'
+                html += '</ul></div>'
+            else:
+                html += '<p>No URLs found</p>'
+            html += '</div>'
+
+        elif module_name == "extractor":
+            html += '<div class="card"><h3>EXTRACTOR RESULTS</h3>'
+            js_files = module_data.get("js_files", [])
+            params = module_data.get("parameters", [])
+            
+            if js_files:
+                html += f'<h4>JavaScript Files ({len(js_files)})</h4><ul>'
+                for js in js_files:
+                    html += f'<li>{js}</li>'
+                html += '</ul>'
+            
+            if params:
+                html += f'<h4>Parameters ({len(params)})</h4><ul>'
+                for param in params:
+                    html += f'<li>{param}</li>'
+                html += '</ul>'
+                
+            if not js_files and not params:
+                html += '<p>No data extracted</p>'
+            html += '</div>'
+            
         html += '</div>'
     
     html += f"""

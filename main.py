@@ -9,6 +9,9 @@ from modules import subdomains
 from modules.dns import DNSModule
 from modules import whois
 from modules import banner
+from modules import crawler
+from modules import extractor
+from modules.tech_detection import tech_detector
 
 
 def setup_logging(verbose: bool = False):
@@ -114,6 +117,42 @@ def print_results(results: dict, output_format: str = "text"):
         print(f"Valid Target : {validation.get('is_valid')}")
         if "error" in validation:
             print(f"Error        : {validation.get('error')}")
+
+    elif module_name == "extractor":
+        print_extractor_results(results)
+    elif "tech_detect" in results:
+        print_tech_detect_results(results)
+
+def print_tech_detect_results(results: dict):
+    """Print technology detection results in text format"""
+    tech_data = results.get("tech_detect", {})
+    
+    print("\n[+] Technology Detection Results\n")
+    print(f"Target        : {tech_data.get('target', 'N/A')}")
+    print(f"Scan Time     : {tech_data.get('scan_time', 'N/A')}")
+    
+    if "error" in tech_data:
+        print(f"\n[-] ERROR: {tech_data['error']}\n")
+        return
+        
+    technologies = tech_data.get("technologies", {})
+    all_detected = technologies.get("all_detected", [])
+    
+    if not all_detected:
+        print(f"\n[-] No technologies detected\n")
+    else:
+        print(f"\nDetected Technologies ({len(all_detected)}):")
+        print("-" * 50)
+        for tech in all_detected:
+            print(f"  {tech}")
+        print()
+        
+        # Print categorised if verbose? No, just all detected for summary
+        if "web_server" in technologies and technologies["web_server"]:
+            print(f"Web Servers: {', '.join(technologies['web_server'])}")
+        if "cms" in technologies and technologies["cms"]:
+            print(f"CMS: {', '.join(technologies['cms'])}")
+    print()
 
 def print_portscan_results(results: dict):
     """Print port scan results in text format"""
@@ -251,6 +290,61 @@ def print_banner_results(results: dict):
         print()
 
 
+def print_crawler_results(results: dict):
+    """Print crawler results in text format"""
+    crawl_data = results.get("crawler", {})
+    
+    print("\n[+] Crawler Results\n")
+    print(f"Target        : {crawl_data.get('target', 'N/A')}")
+    print(f"Scan Time     : {crawl_data.get('scan_time', 'N/A')}")
+    
+    if "error" in crawl_data:
+        print(f"\n[-] ERROR: {crawl_data['error']}\n")
+        return
+    
+    urls = crawl_data.get("urls", [])
+    
+    if not urls:
+        print(f"\n[-] No internal URLs found\n")
+    else:
+        print(f"\nFound {len(urls)} internal URLs:")
+        print("-" * 50)
+        for url in urls:
+            print(f"  {url}")
+        print()
+
+
+def print_extractor_results(results: dict):
+    """Print extractor results in text format"""
+    extract_data = results.get("extractor", {})
+    
+    print("\n[+] Extractor Results\n")
+    print(f"Scan Time     : {extract_data.get('scan_time', 'N/A')}")
+    
+    if "error" in extract_data:
+        print(f"\n[-] ERROR: {extract_data['error']}\n")
+        return
+    
+    js_files = extract_data.get("js_files", [])
+    params = extract_data.get("parameters", [])
+    
+    if js_files:
+        print(f"\nJavaScript Files ({len(js_files)}):")
+        print("-" * 50)
+        for js in js_files:
+            print(f"  {js}")
+    
+    if params:
+        print(f"\nParameterized URLs ({len(params)}):")
+        print("-" * 50)
+        for param in params:
+            print(f"  {param}")
+            
+    if not js_files and not params:
+        print(f"\n[-] No interesting data extracted\n")
+    print()
+
+
 def parse_arguments():
     """
     Parse command line arguments
@@ -324,6 +418,30 @@ Examples:
     )
     
     parser.add_argument(
+        "--crawler",
+        action="store_true",
+        help="Run web crawler module"
+    )
+
+    parser.add_argument(
+        "--python-crawler",
+        action="store_true",
+        help="Use basic Python requests crawler instead of default Katana crawler"
+    )
+    
+    parser.add_argument(
+        "--extractor",
+        action="store_true",
+        help="Run data extractor module (requires crawler)"
+    )
+
+    parser.add_argument(
+        "--tech-detect",
+        action="store_true",
+        help="Run technology detection module"
+    )
+    
+    parser.add_argument(
         "--all",
         action="store_true",
         help="Run all available modules"
@@ -366,7 +484,7 @@ Examples:
     # General options
     parser.add_argument(
         "-f", "--format",
-        choices=["text", "json"],
+        choices=["text", "json", "html"],
         help="Output format (default: text)",
         default="text"
     )
@@ -535,7 +653,7 @@ def run_dns_enum(target: str, args) -> dict:
 
 def run_whois_lookup(target: str) -> dict:
     """
-    Run WHOIS lookup module
+    Run WHOIS lookup module using python-whois library
     
     Args:
         target: Target domain
@@ -546,38 +664,27 @@ def run_whois_lookup(target: str) -> dict:
     logging.info(f"Starting WHOIS lookup: {target}")
     
     try:
-        import subprocess
+        import whois
         
-        # Run whois command
-        result = subprocess.run(
-            ["whois", target],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        # Run whois lookup
+        w = whois.whois(target)
         
-        if result.returncode == 0:
-            return {
-                "whois_lookup": {
-                    "target": target,
-                    "whois_data": result.stdout,
-                    "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-            }
-        else:
-            return {
-                "whois_lookup": {
-                    "target": target,
-                    "error": f"WHOIS command failed: {result.stderr}",
-                    "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-            }
-    except FileNotFoundError:
-        logging.error("WHOIS command not found. Please install whois utility.")
+        # Convert to string/dict representation
+        whois_data = str(w)
+        
         return {
             "whois_lookup": {
                 "target": target,
-                "error": "WHOIS command not found on system",
+                "whois_data": whois_data,
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except ImportError:
+        logging.error("python-whois library not found. Please install it.")
+        return {
+            "whois_lookup": {
+                "target": target,
+                "error": "Missing python-whois library",
                 "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
         }
@@ -633,6 +740,107 @@ def run_banner_grab(target: str, args) -> dict:
         }
 
 
+
+def run_crawler(target: str, use_katana: bool = False) -> dict:
+    """
+    Run crawler module with smart fallback
+    """
+    crawler_type = "Katana" if use_katana else "Standard"
+    
+    # Check if Katana is available if requested
+    if use_katana:
+        if not crawler.check_katana():
+            logging.warning("Katana binary not found. Falling back to Standard Python Crawler.")
+            use_katana = False
+            crawler_type = "Standard (Fallback)"
+
+    logging.info(f"Starting crawler: {target} (Type: {crawler_type})")
+    
+    try:
+        if use_katana:
+            urls = crawler.crawl_with_katana(target)
+            # If Katana returns empty but no error, it might be due to blocking/issues. Fallback?
+            # For now, trust Katana output or lack thereof.
+            if not urls:
+                 logging.warning("Katana found no URLs. Trying Standard Crawler as backup...")
+                 urls = crawler.crawl(target)
+                 crawler_type += " + Standard Backup"
+        else:
+            urls = crawler.crawl(target)
+        
+        return {
+            "crawler": {
+                "target": target,
+                "urls": urls,
+                "type": crawler_type,
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except Exception as e:
+        logging.error(f"Crawler failed: {e}")
+        return {
+            "crawler": {
+                "target": target,
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
+def run_extractor(urls: list) -> dict:
+    """
+    Run extractor module
+    """
+    logging.info(f"Starting extractor on {len(urls)} URLs")
+    
+    try:
+        data = extractor.extract(urls)
+        
+        return {
+            "extractor": {
+                "js_files": data.get("js_files", []),
+                "parameters": data.get("parameters", []),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except Exception as e:
+        logging.error(f"Extractor failed: {e}")
+        return {
+            "extractor": {
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
+def run_tech_detection(target: str, verbose: bool = False) -> dict:
+    """
+    Run technology detection module
+    """
+    logging.info(f"Starting technology detection: {target}")
+    
+    try:
+        detector = tech_detector.TechnologyDetector(target, verbose=verbose)
+        tech_results = detector.detect_all()
+        
+        return {
+            "tech_detect": {
+                "target": target,
+                "technologies": tech_results,
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    except Exception as e:
+        logging.error(f"Technology detection failed: {e}")
+        return {
+            "tech_detect": {
+                "target": target,
+                "error": str(e),
+                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+
 def main():
     """
     Main execution function
@@ -657,6 +865,12 @@ def main():
         modules_to_run.append("whois")
     if run_all or args.banner:
         modules_to_run.append("banner")
+    if run_all or args.crawler:
+        modules_to_run.append("crawler")
+    if run_all or args.tech_detect:
+        modules_to_run.append("tech_detect")
+    if run_all or args.extractor:
+        modules_to_run.append("extractor")
     
     # If no modules specified, default to port scan (backward compatibility)
     if not modules_to_run:
@@ -677,7 +891,7 @@ def main():
         print(f"Valid Target : {validation_result.get('valid')}")
         print(f"Error        : {validation_result.get('error')}")
 
-sys.exit(1)
+        sys.exit(1)
 
     has_error = False
     
@@ -702,6 +916,32 @@ sys.exit(1)
                     
                 elif module_name == "banner":
                     results = run_banner_grab(args.target, args)
+                    all_results.update(results)
+
+                elif module_name == "tech_detect":
+                    results = run_tech_detection(args.target, args.verbose)
+                    all_results.update(results)
+                
+                elif module_name == "crawler":
+                    # Default to Katana unless python-crawler is requested
+                    results = run_crawler(args.target, use_katana=not args.python_crawler)
+                    all_results.update(results)
+                    
+                elif module_name == "extractor":
+                    # Extractor needs crawler results
+                    crawler_data = all_results.get("crawler", {})
+                    urls = crawler_data.get("urls", [])
+                    
+                    if not urls:
+                        logging.warning("Extractor skipped: No URLs found (did crawler run?)")
+                        results = {
+                            "extractor": {
+                                "error": "No URLs to extract from (run crawler first)",
+                                "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            }
+                        }
+                    else:
+                        results = run_extractor(urls)
                     all_results.update(results)
                 
                 # Check for errors in this module
@@ -735,7 +975,9 @@ sys.exit(1)
                     "subdomains": "subdomain_enum",
                     "dns": "dns_enum",
                     "whois": "whois_lookup",
-                    "banner": "banner_grab"
+                    "banner": "banner_grab",
+                    "crawler": "crawler",
+                    "extractor": "extractor"
                 }
                 
                 module_key = module_key_map.get(module_name)
