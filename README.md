@@ -33,6 +33,7 @@ python main.py <target> [module flags] [options]
 | Banner Grabbing | `--banner` | Grab service banners |
 | Web Crawler | `--crawler` | Crawl for internal URLs (Uses Katana by default) |
 | Data Extractor | `--extractor` | Extract JS/Params (requires crawler) |
+| Technology Detect | `--tech-detect` | Identify stack (CMS, Frameworks, etc) |
 | All Modules | `--all` | Run everything |
 
 ## Quick Examples
@@ -98,6 +99,13 @@ python main.py example.com --crawler --python-crawler
 
 # Crawl and Extract Data (JS files, parameters)
 python main.py example.com --crawler --extractor
+```
+
+### Technology Detection
+
+```bash
+# Identify technologies (CMS, Server, Frameworks)
+python main.py example.com --tech-detect
 ```
 
 ### Run Multiple Modules

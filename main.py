@@ -11,7 +11,8 @@ from modules import whois
 from modules import banner
 from modules import crawler
 from modules import extractor
-from modules.tech_detection import tech_detector
+from modules import extractor
+from modules import tech_detect
 
 
 def setup_logging(verbose: bool = False):
@@ -802,7 +803,7 @@ def run_tech_detection(target: str, verbose: bool = False) -> dict:
     logging.info(f"Starting technology detection: {target}")
     
     try:
-        detector = tech_detector.TechnologyDetector(target, verbose=verbose)
+        detector = tech_detect.TechnologyDetector(target, verbose=verbose)
         tech_results = detector.detect_all()
         
         return {
