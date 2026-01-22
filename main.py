@@ -118,7 +118,9 @@ def print_results(results: dict, output_format: str = "text"):
         if "error" in validation:
             print(f"Error        : {validation.get('error')}")
 
-    elif module_name == "extractor":
+    elif "crawler" in results:
+        print_crawler_results(results)
+    elif "extractor" in results:
         print_extractor_results(results)
     elif "tech_detect" in results:
         print_tech_detect_results(results)
