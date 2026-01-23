@@ -202,3 +202,18 @@ python main.py example.com -p 80,443
 python main.py example.com --portscan -p 80,443
 ```
 
+## Docker Examples
+
+Commands are similar, just prefixed with `docker-compose run --rm recon`:
+
+```bash
+# Full Scan
+docker-compose run --rm recon target.com --all
+
+# Port Scan only
+docker-compose run --rm recon target.com --portscan -p 80,443
+
+# Crawl with Katana
+docker-compose run --rm recon target.com --crawler
+```
+
