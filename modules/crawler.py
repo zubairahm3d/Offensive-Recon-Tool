@@ -5,7 +5,6 @@ import logging
 import shutil
 import subprocess
 import json
-
 import os
 
 def check_katana():
@@ -13,12 +12,19 @@ def check_katana():
     if shutil.which("katana") is not None:
         return "katana"
         
-    # Check default Go bin path on Windows
+    # Check default Go bin path
     home = os.path.expanduser("~")
-    go_bin = os.path.join(home, "go", "bin", "katana.exe")
+    
+    # Check for windows extension first
+    go_bin_exe = os.path.join(home, "go", "bin", "katana.exe")
+    if os.path.exists(go_bin_exe):
+        return go_bin_exe
+        
+    # Check for linux/mac binary
+    go_bin = os.path.join(home, "go", "bin", "katana")
     if os.path.exists(go_bin):
         return go_bin
-        
+
     return None
 
 def crawl(target_url, max_depth=2):
@@ -122,7 +128,6 @@ def crawl_with_katana(target_url, max_depth=2):
         "-u", target_url,
         "-d", str(max_depth),
         "-jc",          # Javascript crawling (headless)
-        "-kf",          # Keep fragments/params
         "-silent",      # JSON output only if compatible, else plain text
         # "-json"       # JSON output is better for parsing, let's stick to text line parsing for simplicity first or use -json
     ]
