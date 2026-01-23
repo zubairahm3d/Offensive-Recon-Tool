@@ -7,12 +7,40 @@ A simple reconnaissance tool for gathering information about target domains and 
 - Python 3.7+
 - `whois` command (pre-installed on most Linux systems)
 
-## Installation
+### Local Installation (Without Docker)
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+### Docker Usage (Recommended)
+
+You can run the tool using Docker to ensure all dependencies (including Katana) are correctly installed and configured.
+
+**Using Docker Compose (Easiest):**
+
+1. Build the image (required first time or after updates):
+   ```bash
+   docker-compose build
+   ```
+
+2. Run a scan:
+   ```bash
+   docker-compose run --rm recon example.com --all
+   ```
+
+**Using pure Docker:**
+
+```bash
+# Build
+docker build -t recon-tool .
+
+# Run (Mounting volumes is critical to save results!)
+docker run --rm -v $(pwd)/Results:/app/Results -v $(pwd)/reports:/app/reports recon-tool example.com --all
+```
+
+
 
 ## Usage
 

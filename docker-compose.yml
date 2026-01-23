@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  recon:
+    build: .
+    image: recon-tool
+    volumes:
+      - ./Results:/app/Results
+      - ./reports:/app/reports
+    # Keep container running if needed, or just run one-off commands
+    # entrypoint: ["tail", "-f", "/dev/null"] 
+    # usage: docker-compose run recon example.com --all

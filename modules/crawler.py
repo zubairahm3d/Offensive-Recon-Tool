@@ -9,8 +9,9 @@ import os
 
 def check_katana():
     """Check if katana is installed and available in PATH or default Go bin. Returns path or None."""
-    if shutil.which("katana") is not None:
-        return "katana"
+    path = shutil.which("katana")
+    if path is not None:
+        return path
         
     # Check default Go bin path
     home = os.path.expanduser("~")
@@ -24,6 +25,10 @@ def check_katana():
     go_bin = os.path.join(home, "go", "bin", "katana")
     if os.path.exists(go_bin):
         return go_bin
+
+    # Check common system paths (e.g. Docker)
+    if os.path.exists("/usr/local/bin/katana"):
+        return "/usr/local/bin/katana"
 
     return None
 
