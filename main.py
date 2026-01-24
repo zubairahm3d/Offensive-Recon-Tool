@@ -427,6 +427,13 @@ Examples:
         action="store_true",
         help="Use basic Python requests crawler instead of default Katana crawler"
     )
+
+    parser.add_argument(
+    "--depth",
+    type=int,
+    help="Crawler depth (default: 2)",
+    default=2
+    )
     
     parser.add_argument(
         "--extractor",
@@ -1007,5 +1014,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
