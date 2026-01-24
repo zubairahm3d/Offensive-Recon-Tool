@@ -974,11 +974,12 @@ def main():
             
             if saved_path and args.format == "text":
                 print(f"[+] All results saved to: {saved_path}\n")
-            if args.format == "html":
+            if args.format == "text" or args.format == "html":
                     try:
                         from modules import reports
-                        report_file = reports.create_report(all_results, args.target, "html")
-                        print(f"[+] HTML report generated: {report_file}")
+                        format_type = "text" if args.format == "text" else "html"
+                        report_file = reports.create_report(all_results, args.target, format_type)
+                        print(f"[+] Additional {args.format.upper()} report generated: {report_file}")
                     except ImportError as e:
                         print(f"[!] Could not import report module: {e}")
                     except Exception as e:
@@ -1000,3 +1001,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
