@@ -13,6 +13,7 @@ from modules import crawler
 from modules import extractor
 from modules import extractor
 from modules import tech_detect
+from modules import validator
 
 
 def setup_logging(verbose: bool = False):
@@ -514,6 +515,10 @@ def parse_ports(port_string: str):
     """
     if not port_string:
         return None
+        
+    # If already parsed (list or tuple), return as is
+    if isinstance(port_string, (list, tuple)):
+        return port_string
     
     # Check if it's a range
     if "-" in port_string:
@@ -830,6 +835,16 @@ def main():
     Orchestrates multiple reconnaissance modules
     """
     args = parse_arguments()
+    
+    # Pre-process ports for validation
+    if args.ports:
+        args.ports = parse_ports(args.ports)
+    
+    # Input Validation
+    validation = validator.run(args)
+    if not validation["valid"]:
+        print(f"[!] Input Error: {validation.get('error', 'Unknown Error')}")
+        sys.exit(1)
     
     # Setup logging
     setup_logging(args.verbose)
