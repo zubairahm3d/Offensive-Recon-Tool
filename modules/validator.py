@@ -8,6 +8,7 @@ import re
 import socket
 import os
 from typing import List, Optional, Tuple, Dict, Union
+from urllib.parse import urlparse
 
 
 # =========================
@@ -177,6 +178,85 @@ def validate_whois_domain(domain: str) -> Dict:
 
 
 # =========================
+# URL Validation
+# =========================
+def validate_url_target(target: str) -> Dict:
+    """
+    Validate and normalize URL for crawler module
+    """
+    if not target:
+        return {"valid": False, "error": "Target URL cannot be empty"}
+
+    target = target.strip()
+
+    if not target.startswith(("http://", "https://")):
+        target = f"https://{target}"
+
+    parsed = urlparse(target)
+
+    if not parsed.scheme or not parsed.netloc:
+        return {"valid": False, "error": "Invalid URL format"}
+
+    return {"valid": True, "url": target, "domain": parsed.netloc}
+
+# =========================
+# Crawler Validation
+# =========================
+def validate_crawler_depth(depth: int) -> Dict:
+    try:
+        depth = int(depth)
+    except (TypeError, ValueError):
+        return {"valid": False, "error": "Crawler depth must be an integer"}
+
+    if depth < 1 or depth > 5:
+        return {"valid": False, "error": "Crawler depth must be between 1 and 5"}
+
+    return {"valid": True, "depth": depth}
+
+# =========================
+# katana Validation
+# =========================
+def validate_katana(use_katana: bool) -> Dict:
+    if not use_katana:
+        return {"valid": True}
+
+    try:
+        from modules.crawler import check_katana
+    except ImportError:
+        return {"valid": False, "error": "Crawler module not found"}
+
+    if not check_katana():
+        return {
+            "valid": False,
+            "error": "Katana not found. Install with: go install github.com/projectdiscovery/katana/cmd/katana@latest"
+        }
+
+    return {"valid": True}
+
+# =========================
+#Tech_detect Validation
+# =========================
+def validate_tech_target(domain: str) -> Dict:
+    """
+    Technology detection only supports DOMAIN (no URL, no IP)
+    """
+    if is_url(domain):
+        return {"valid": False, "error": "Technology detection requires a domain, not a URL"}
+
+    if is_valid_ip(domain):
+        return {"valid": False, "error": "Technology detection does not support IP addresses"}
+
+    if not is_valid_domain(domain):
+        return {"valid": False, "error": "Invalid domain format for technology detection"}
+
+    resolved = resolve_target(domain)
+    if not resolved:
+        return {"valid": False, "error": "Domain could not be resolved"}
+
+    return {"valid": True, "domain": domain, "resolved_ip": resolved}
+
+
+# =========================
 # Report Validation
 # =========================
 
@@ -195,33 +275,74 @@ def validate_report_format(fmt: str) -> Dict:
 # Master Validator (Main.py)
 # =========================
 
-def run(args) -> Dict:
+def validate_main_inputs(args) -> Dict:
     """
     Validate all inputs coming from main.py before execution
     """
 
-    # Target validation
-    needs_domain = args.subdomains or args.dns or args.whois
-    target_check = validate_target(args.target, domain_only=needs_domain)
-    if not target_check["valid"]:
-        return target_check
+    # =========================
+    # Module conflict check
+    # =========================
+    if args.crawler and (args.dns or args.subdomains or args.whois or args.tech_detect):
+        return {
+            "valid": False,
+            "error": "Crawler cannot be combined with DNS, subdomains, WHOIS, or tech-detect"
+        }
 
-    # Ports
+    # =========================
+    # Extractor dependency
+    # =========================
+    if args.extractor and not args.crawler and not args.all:
+        return {
+            "valid": False,
+            "error": "Extractor requires crawler module"
+        }
+
+    # =========================
+    # Target Validation (mode-based)
+    # =========================
+    if args.crawler:
+        url_check = validate_url_target(args.target)
+        if not url_check["valid"]:
+            return url_check
+
+        depth_check = validate_crawler_depth(args.depth)
+        if not depth_check["valid"]:
+            return depth_check
+
+        katana_check = validate_katana(not args.python_crawler)
+        if not katana_check["valid"]:
+            return katana_check
+
+    elif args.tech_detect:
+        tech_check = validate_tech_target(args.target)
+        if not tech_check["valid"]:
+            return tech_check
+
+    else:
+        needs_domain = args.subdomains or args.dns or args.whois
+        target_check = validate_target(args.target, domain_only=needs_domain)
+        if not target_check["valid"]:
+            return target_check
+
+    # =========================
+    # Port scan options
+    # =========================
     ports_check = validate_ports(args.ports)
     if not ports_check["valid"]:
         return ports_check
 
-    # Timeout
     timeout_check = validate_timeout(args.timeout)
     if not timeout_check["valid"]:
         return timeout_check
 
-    # Workers
     workers_check = validate_workers(args.workers)
     if not workers_check["valid"]:
         return workers_check
 
-    # DNS
+    # =========================
+    # DNS options
+    # =========================
     dns_types_check = validate_dns_types(
         args.dns_types.split(",") if args.dns_types else None
     )
@@ -232,10 +353,10 @@ def run(args) -> Dict:
     if not ns_check["valid"]:
         return ns_check
 
+    # =========================
     # Output filename
+    # =========================
     if args.output:
         args.output = sanitize_filename(args.output)
 
     return {"valid": True}
-
-
