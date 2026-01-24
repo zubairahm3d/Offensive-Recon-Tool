@@ -840,11 +840,17 @@ def main():
     if args.ports:
         args.ports = parse_ports(args.ports)
     
+
     # Input Validation
-    validation = validator.run(args)
+    validation = validator.validate_main_inputs(args)
     if not validation["valid"]:
         print(f"[!] Input Error: {validation.get('error', 'Unknown Error')}")
         sys.exit(1)
+
+    # Sanitize output filename
+    if args.output:
+        args.output = validator.sanitize_filename(args.output)
+
     
     # Setup logging
     setup_logging(args.verbose)
@@ -1001,4 +1007,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
